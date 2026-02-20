@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ChatGPT 对话查看器</title>
+  <title>Chat Viewer - 对话查看器</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Satisfy&display=swap" rel="stylesheet">
@@ -410,6 +410,21 @@
     .conv-action-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
     .conv-action-btn.danger { color: var(--danger); }
     .conv-action-btn.danger:hover { background: var(--danger-light); border-color: var(--danger); }
+    /* 数据源筛选 */
+    .source-filter { display: flex; align-items: center; padding: 6px 10px; gap: 4px; border-bottom: 1px solid var(--border); background: var(--bg); }
+    .source-filter-btn { padding: 4px 10px; border: 1px solid var(--border); border-radius: 12px; background: transparent; font-size: var(--font-size-xs); cursor: pointer; transition: all 0.2s; color: var(--text-light); }
+    .source-filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .source-filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+    /* 数据源标签 */
+    .conv-source-tag { font-size: 0.65rem; color: var(--text-light); margin-left: 6px; font-weight: normal; }
+    /* Claude thinking折叠样式 */
+    .thinking-block { margin-bottom: 8px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .thinking-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: var(--bg); cursor: pointer; font-size: var(--font-size-small); color: var(--text-light); }
+    .thinking-header:hover { background: var(--primary-light); }
+    .thinking-toggle { transition: transform 0.2s; }
+    .thinking-header.collapsed .thinking-toggle { transform: rotate(-90deg); }
+    .thinking-content { padding: 10px; font-size: var(--font-size-small); color: var(--text-light); white-space: pre-wrap; line-height: 1.5; border-top: 1px solid var(--border); }
+    .thinking-content.collapsed { display: none; }
     .conv-search { padding: 8px 10px; }
     .conv-search input { width: 100%; padding: 8px 12px; border: 2px solid var(--border); border-radius: 10px; font-size: var(--font-size-small); outline: none; transition: all 0.2s; background: var(--bg); color: var(--text); }
     .conv-search input:focus { border-color: var(--primary); }
@@ -847,9 +862,11 @@
     mark.kw-highlight { background: var(--highlight-bg); padding: 1px 2px; border-radius: 2px; }
 
     /* 代码块复制按钮 */
-    .code-block-wrapper { position: relative; }
-    .code-block-wrapper .code-copy-btn { position: absolute; top: 6px; right: 6px; z-index: 10; }
+    .message-bubble pre { position: relative; }
     .code-copy-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
       width: 28px;
       height: 28px;
       border: none;
@@ -864,8 +881,9 @@
       color: var(--text);
       font-size: 0.75rem;
       padding: 0;
+      z-index: 10;
     }
-    .code-block-wrapper:hover .code-copy-btn { opacity: 0.7; }
+    .message-bubble pre:hover .code-copy-btn { opacity: 0.7; }
     .code-copy-btn:hover { opacity: 1 !important; background: rgba(255,255,255,1); }
     .code-copy-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; }
     .code-copy-btn.copied { color: #22c55e; }
@@ -980,11 +998,11 @@
   <div class="settings-section"><label class="settings-label">聊天字体</label><select class="font-selector" id="settings-font" onchange="selectFont(this.value)"><option value="system">系统默认</option><option value="naikai">内海简体</option><option value="moonstars">月星楷</option><option value="jason">清松手写体</option><option value="pingfang">平方时光体</option><option value="cococheese">小可奶酪体</option><option value="zcool">站酷快乐体</option><option value="ZZJmarkpen">宅在家麦克笔</option><option value="ZLabsBitmap">ZLabsBitmap像素</option><option value="KURIYAMAKOUCHI">栗山巧緻フォント</option></select></div>
   <div class="settings-section"><label class="settings-label">字体大小</label><div class="fontsize-selector"><input type="range" class="fontsize-slider" id="fontsize-slider" min="12" max="18" value="14" oninput="selectFontSizeBySlider(this.value)"></div></div><div class="settings-buttons"><button class="modal-btn primary" onclick="saveSettings()">保存</button><button class="modal-btn cancel" onclick="closeSettings()">取消</button></div></div></div>
   <div class="toast" id="toast"></div>
-  <header class="header"><div class="header-left"><button class="header-btn" onclick="toggleDrawer()"><svg class="icon-svg" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button><button class="header-btn" onclick="document.getElementById('file-input').click()"><svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button></div><div class="header-logo" id="header-logo">GPT Chat Viewer</div><input type="file" id="file-input" accept=".json" multiple onchange="handleFileSelect(event)"></header>
+  <header class="header"><div class="header-left"><button class="header-btn" onclick="toggleDrawer()"><svg class="icon-svg" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button><button class="header-btn" onclick="document.getElementById('file-input').click()"><svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button></div><div class="header-logo" id="header-logo">Chat Viewer</div><input type="file" id="file-input" accept=".json" multiple onchange="handleFileSelect(event)"></header>
   <div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer()"></div>
-  <nav class="drawer" id="drawer"><div class="drawer-header"><h2 id="drawer-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span id="drawer-title-text">我们的回忆</span></h2><p id="drawer-subtitle">还没有上传对话哦~</p></div><div class="drawer-menu"><div class="drawer-menu-item active" data-view="conversations" onclick="switchView('conversations')"><svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="label">对话</span></div><div class="drawer-menu-item" data-view="favorites" onclick="switchView('favorites')"><svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="label">收藏</span></div><div class="drawer-menu-item" data-view="stats" onclick="switchView('stats')"><svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span class="label">统计</span></div><div class="drawer-menu-item" data-view="timeline" onclick="switchView('timeline')"><svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="label">时间轴</span></div><div class="drawer-menu-item" onclick="openSettings()"><svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="label">设置</span></div><div class="drawer-menu-item danger" onclick="showClearDataModal()"><svg class="icon-svg" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg><span class="label">清除</span></div></div><div class="conv-actions" id="conv-actions"><button class="conv-action-btn" id="select-mode-btn" onclick="toggleSelectMode()">☑ 多选</button><button class="conv-action-btn" id="export-selected-btn" onclick="exportSelectedConversations()" style="display:none;">📤 导出</button><button class="conv-action-btn danger" id="delete-selected-btn" onclick="showDeleteSelectedModal()" style="display:none;">🗑 删除</button></div><div class="conv-search"><input type="text" id="conv-search-input" placeholder="🔍 搜索对话标题..." oninput="filterConversations()"></div><div class="drawer-conversations" id="drawer-conversations"><div class="empty-state"><div class="icon">📭</div><p>上传JSON后这里会显示对话列表~</p></div></div></nav>
+  <nav class="drawer" id="drawer"><div class="drawer-header"><h2 id="drawer-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span id="drawer-title-text">我们的回忆</span></h2><p id="drawer-subtitle">还没有上传对话哦~</p></div><div class="drawer-menu"><div class="drawer-menu-item active" data-view="conversations" onclick="switchView('conversations')"><svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="label">对话</span></div><div class="drawer-menu-item" data-view="favorites" onclick="switchView('favorites')"><svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="label">收藏</span></div><div class="drawer-menu-item" data-view="stats" onclick="switchView('stats')"><svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span class="label">统计</span></div><div class="drawer-menu-item" data-view="timeline" onclick="switchView('timeline')"><svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="label">时间轴</span></div><div class="drawer-menu-item" onclick="openSettings()"><svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="label">设置</span></div><div class="drawer-menu-item danger" onclick="showClearDataModal()"><svg class="icon-svg" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg><span class="label">清除</span></div></div><div class="conv-actions" id="conv-actions"><button class="conv-action-btn" id="select-mode-btn" onclick="toggleSelectMode()">☑ 多选</button><button class="conv-action-btn" id="export-selected-btn" onclick="exportSelectedConversations()" style="display:none;">📤 导出</button><button class="conv-action-btn danger" id="delete-selected-btn" onclick="showDeleteSelectedModal()" style="display:none;">🗑 删除</button></div><div class="source-filter" id="source-filter"><button class="source-filter-btn active" data-source="all" onclick="setSourceFilter('all')">全部</button><button class="source-filter-btn" data-source="gpt" onclick="setSourceFilter('gpt')">GPT</button><button class="source-filter-btn" data-source="claude" onclick="setSourceFilter('claude')">Claude</button></div><div class="conv-search"><input type="text" id="conv-search-input" placeholder="🔍 搜索对话标题..." oninput="filterConversations()"></div><div class="drawer-conversations" id="drawer-conversations"><div class="empty-state"><div class="icon">📭</div><p>上传JSON后这里会显示对话列表~</p></div></div></nav>
   <main class="main-content">
-    <div class="view-upload" id="view-upload"><div class="upload-box" id="upload-box"><div class="icon">📁</div><h2>上传你的对话记录</h2><p>拖拽 ChatGPT 导出的 JSON 文件到这里<br>或点击下方按钮选择文件</p><button class="upload-btn" onclick="document.getElementById('file-input').click()">✨ 选择文件</button><div class="upload-hint">💡 支持多次上传，会自动去重合并哦~<br>📝 改名的对话会自动识别并更新</div></div></div>
+    <div class="view-upload" id="view-upload"><div class="upload-box" id="upload-box"><div class="icon">📁</div><h2>上传你的对话记录</h2><p>拖拽 ChatGPT 或 Claude 导出的 JSON 文件到这里<br>或点击下方按钮选择文件</p><button class="upload-btn" onclick="document.getElementById('file-input').click()">✨ 选择文件</button><div class="upload-hint">💡 支持多次上传，会自动去重合并哦~<br>📝 支持 GPT 和 Claude 数据，会自动识别来源</div></div></div>
     <div class="view-chat" id="view-chat"><div class="chat-header" id="chat-header"><div class="chat-title-row"><div class="chat-title" id="chat-title">对话标题</div><button class="collapse-btn" id="collapse-btn" onclick="toggleHeaderCollapse()" title="折叠/展开">▲</button></div><div class="collapsible-section" id="collapsible-section"><div class="search-section"><div class="search-box"><input type="text" id="search-input" placeholder="搜索消息内容..." enterkeyhint="search"><button type="button" id="search-submit" class="search-submit-btn" title="搜索">🔍</button></div><div class="search-mode-toggle"><button class="search-mode-btn active" data-mode="current" onclick="setSearchMode('current')">当前对话</button><button class="search-mode-btn" data-mode="global" onclick="setSearchMode('global')">全部对话</button></div><div class="global-search-info" id="global-search-info"><span class="search-result-count" id="search-result-count">找到 0 条结果</span><div class="search-nav-btns"><button class="search-nav-btn" onclick="navigateSearchResult(-1)">◀ 上一个</button><button class="search-nav-btn" onclick="navigateSearchResult(1)">下一个 ▶</button></div></div></div></div></div><div class="timeline-nav" id="timeline-nav"></div><div class="chat-messages" id="chat-messages"></div></div>
     <div class="view-global-search" id="view-global-search"><div class="global-search-header"><div class="global-search-title"><button class="global-search-back" onclick="exitGlobalSearch()">←</button><h2>🔍 全局搜索结果</h2></div><div class="global-search-stats" id="global-search-stats">搜索中...</div></div><div class="global-search-results" id="global-search-results"><div class="empty-state"><div class="icon">🔍</div><p>输入关键词开始搜索~</p></div></div></div>
     <div class="view-conv-select" id="view-conv-select"><div class="day-header"><button class="day-back-btn" onclick="switchView('timeline')">←</button><div class="day-title"><h2 id="conv-select-title">2024年1月1日</h2><p id="conv-select-subtitle">请选择要查看的对话窗口</p></div></div><div class="conv-select-list" id="conv-select-list"></div></div>
@@ -1150,7 +1168,65 @@
     let wordcloudBlacklist = [];
     let wordDict = new Set(); // 分词词典
     let dictLoaded = false;
-    
+    let currentSourceFilter = 'all'; // 数据源筛选: 'all' | 'gpt' | 'claude'
+    let filteredStatsByDate = {}, filteredMessagesByDate = {}; // 筛选后的统计数据
+
+    // 数据源筛选函数
+    function setSourceFilter(source) {
+      currentSourceFilter = source;
+      document.querySelectorAll('.source-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.source === source);
+      });
+      recomputeFilteredStats();
+      filterConversations();
+      renderCalendar();
+      renderTimeline();
+      renderOverview();
+      // 更新图表
+      if (chartMode === 'linechart') renderLineChart();
+      else if (chartMode === 'year') renderYearChart();
+      updateDrawerSubtitle();
+      // 更新词云窗口筛选下拉框并重新渲染词云
+      updateConvFilterOptions();
+      renderWordCloud();
+    }
+
+    // 重新计算筛选后的统计数据
+    function recomputeFilteredStats() {
+      filteredStatsByDate = {};
+      filteredMessagesByDate = {};
+
+      const targetConvs = currentSourceFilter === 'all'
+        ? allConversations
+        : allConversations.filter(c => (c._source || 'gpt') === currentSourceFilter);
+
+      targetConvs.forEach(conv => {
+        const messages = parseMessages(conv);
+        messages.forEach(msg => {
+          msg.convId = conv.id;
+          msg.convTitle = conv.title || '未命名对话';
+          if (msg.time && isValidTimestamp(msg.time)) {
+            const ds = formatDateKey(msg.time);
+            if (!filteredMessagesByDate[ds]) filteredMessagesByDate[ds] = [];
+            filteredMessagesByDate[ds].push(msg);
+            if (!filteredStatsByDate[ds]) filteredStatsByDate[ds] = { userWords: 0, aiWords: 0, count: 0 };
+            const words = msg.content.length;
+            if (msg.role === 'user') filteredStatsByDate[ds].userWords += words;
+            else filteredStatsByDate[ds].aiWords += words;
+            filteredStatsByDate[ds].count++;
+          }
+        });
+      });
+    }
+
+    // 检测对话数据源类型
+    function detectConversationSource(conv) {
+      if (conv._source) return conv._source;
+      if (conv._raw && conv._raw.chat_messages) return 'claude';
+      if (conv.mapping) return 'gpt';
+      return 'unknown';
+    }
+
     // 加载分词词典
     async function loadWordDict() {
       try {
@@ -1322,10 +1398,9 @@
       applyPattern();
       applyFont();
       updateHeaderLogo(); updatePageTitle();
-      // 更新总统计卡片的名字和头像
       if (typeof renderTotalStats === 'function') renderTotalStats();
     }
-    
+
     function applyFont() {
       const fontMap = {
         'system': '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
@@ -1343,7 +1418,7 @@
       document.documentElement.style.setProperty('--chat-font', fontFamily);
       document.querySelectorAll('.message-bubble').forEach(el => { el.style.fontFamily = fontFamily; });
     }
-    
+
     function applyPattern() {
       const chatMessages = document.getElementById('chat-messages');
       const dayMessages = document.getElementById('day-messages-container');
@@ -1471,13 +1546,13 @@
           dt.innerHTML = `<span class="font-decorative">${escapeHtml(an)} Memories</span>`;
         }
       } else {
-        logo.innerHTML = `<span class="font-decorative">GPT Chat Viewer</span>`;
+        logo.innerHTML = `<span class="font-decorative">Chat Viewer</span>`;
         dt.textContent = '我们的回忆';
         dt.classList.remove('font-decorative');
       }
     }
     
-    function updatePageTitle() { document.title = (appSettings.userName && appSettings.aiName) ? `${appSettings.aiName} & ${appSettings.userName}` : 'ChatGPT 对话查看器'; }
+    function updatePageTitle() { document.title = (appSettings.userName && appSettings.aiName) ? `${appSettings.aiName} & ${appSettings.userName}` : 'Chat Viewer - 对话查看器'; }
     function openSettings() {
       document.getElementById('settings-user-name').value = appSettings.userName;
       document.getElementById('settings-ai-name').value = appSettings.aiName;
@@ -1550,11 +1625,16 @@
     
     function performGlobalSearch(keyword) {
       globalSearchResults = []; flatSearchResults = [];
-      allConversations.forEach(conv => {
-        const messages = parseMessages(conv.mapping, conv.current_node);
+      // 根据数据源筛选对话
+      const targetConvs = currentSourceFilter === 'all'
+        ? allConversations
+        : allConversations.filter(c => (c._source || 'gpt') === currentSourceFilter);
+
+      targetConvs.forEach(conv => {
+        const messages = parseMessages(conv);
         const matches = [];
         messages.forEach(msg => {
-          if (msg.content.toLowerCase().includes(keyword)) {
+          if (msg.content.toLowerCase().includes(keyword) || (msg.thinking && msg.thinking.toLowerCase().includes(keyword))) {
             const preview = generatePreview(msg.content, keyword);
             matches.push({ msgId: msg.id, content: msg.content, preview: preview, time: msg.time, role: msg.role });
             flatSearchResults.push({ convId: conv.id, convTitle: conv.title || '未命名对话', msgId: msg.id });
@@ -1683,15 +1763,89 @@
       } catch (err) { console.error('解析失败', err); showToast('文件解析失败，请确认是有效的JSON文件'); }
       hideLoading();
     }
+    // 检测原始数据格式
+    function detectFormat(data) {
+      if (Array.isArray(data)) {
+        if (data.length > 0) {
+          // Claude原始格式：顶层有chat_messages
+          if (data[0].chat_messages !== undefined) return 'claude';
+          // 已转换的Claude格式：有_source和_raw
+          if (data[0]._source === 'claude' && data[0]._raw) return 'claude_converted';
+          // GPT格式：有mapping
+          if (data[0].mapping) return 'gpt';
+        }
+        return 'unknown';
+      }
+      if (data.chat_messages !== undefined) return 'claude';
+      if (data._source === 'claude' && data._raw) return 'claude_converted';
+      if (data.mapping) return 'gpt';
+      return 'unknown';
+    }
+
+    function generateId() { return 'conv-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9); }
+    function parseISOTime(isoStr) { if (!isoStr) return 0; const d = new Date(isoStr); return d.getTime() / 1000; }
+
+    // 检查对话是否有有效消息
+    function hasValidMessages(conv) {
+      const messages = parseMessages(conv);
+      return messages.length > 0;
+    }
+
     async function processFile(file) {
       const text = await readFileAsText(file);
-      let data = JSON.parse(text), newConvs = Array.isArray(data) ? data : [data];
-      newConvs = newConvs.map(c => { const pid = c.conversation_id || c.id; c.id = pid; c.conversation_id = pid; return c; });
+      let data = JSON.parse(text);
+      const format = detectFormat(data);
+
+      if (format === 'unknown') {
+        throw new Error('无法识别的文件格式');
+      }
+
+      let newConvs = Array.isArray(data) ? data : [data];
+
+      newConvs = newConvs.map(c => {
+        if (format === 'claude') {
+          // Claude原始数据需要转换
+          const convId = c.uuid || c.id || generateId();
+          return {
+            id: convId,
+            conversation_id: convId,
+            title: c.name || '未命名对话',
+            create_time: c.created_at ? parseISOTime(c.created_at) : Date.now() / 1000,
+            update_time: c.updated_at ? parseISOTime(c.updated_at) : Date.now() / 1000,
+            _source: 'claude',
+            _raw: c
+          };
+        } else if (format === 'claude_converted') {
+          // 已转换的Claude格式，保持不变
+          return c;
+        } else {
+          // GPT格式
+          const convId = c.conversation_id || c.id;
+          c.id = convId;
+          c.conversation_id = convId;
+          c._source = 'gpt';
+          return c;
+        }
+      });
+
+      // 过滤掉没有有效消息的对话
+      newConvs = newConvs.filter(conv => hasValidMessages(conv));
+
       let addedCount = 0, updatedCount = 0;
       for (const conv of newConvs) {
         const existIdx = allConversations.findIndex(c => c.conversation_id === conv.conversation_id || c.id === conv.id);
-        if (existIdx >= 0) { const ex = allConversations[existIdx]; if ((conv.update_time || conv.create_time || 0) >= (ex.update_time || ex.create_time || 0)) { allConversations[existIdx] = conv; await saveConversationToDb(conv); updatedCount++; } }
-        else { allConversations.push(conv); await saveConversationToDb(conv); addedCount++; }
+        if (existIdx >= 0) {
+          const ex = allConversations[existIdx];
+          if ((conv.update_time || conv.create_time || 0) >= (ex.update_time || ex.create_time || 0)) {
+            allConversations[existIdx] = conv;
+            await saveConversationToDb(conv);
+            updatedCount++;
+          }
+        } else {
+          allConversations.push(conv);
+          await saveConversationToDb(conv);
+          addedCount++;
+        }
       }
       return { added: addedCount, updated: updatedCount };
     }
@@ -1701,7 +1855,7 @@
       allConversations.sort((a, b) => (a.create_time || 0) - (b.create_time || 0));
       filteredConversations = [...allConversations];
       allConversations.forEach((conv, convIndex) => {
-        const messages = parseMessages(conv.mapping, conv.current_node);
+        const messages = parseMessages(conv);
         let totalChars = 0; messages.forEach(m => totalChars += m.content.length);
         conversationStats[conv.id] = { messageCount: messages.length, totalChars, estimatedTokens: Math.round(totalChars / 2.5) };
         messages.forEach(msg => {
@@ -1732,8 +1886,14 @@
       });
       renderConversationList(); updateDrawerSubtitle(); renderCalendar(); renderTimeline(); updateConvFilterOptions();
     }
-    function parseMessages(mapping, currentNode) {
-      if (!mapping) return [];
+    function parseMessages(conv) {
+      // Claude数据解析
+      if (conv._source === 'claude' && conv._raw) {
+        return parseClaudeMessages(conv._raw);
+      }
+      // GPT数据解析
+      if (!conv.mapping) return [];
+      const mapping = conv.mapping;
       const messages = [], seenIds = new Set();
       for (const [nodeId, nodeData] of Object.entries(mapping)) {
         if (!nodeData || !nodeData.message) continue;
@@ -1760,13 +1920,79 @@
       const deduped = []; for (const m of messages) { if (!deduped.some(x => x.time === m.time && x.content === m.content && x.role === m.role)) deduped.push(m); }
       return deduped;
     }
+
+    // Claude数据解析
+    function parseClaudeMessages(convData) {
+      const messages = [];
+      const chatMessages = convData.chat_messages || [];
+      // 获取对话级别的模型信息（检查多个可能的字段位置）
+      // Claude导出格式中model可能在: model, model_id, current_model, settings.model等
+      const convModel = convData.model || convData.model_id || convData.current_model ||
+        convData.default_model || convData.selected_model ||
+        (convData.settings && (convData.settings.model || convData.settings.model_id)) ||
+        (convData.project && convData.project.model) ||
+        (convData.metadata && convData.metadata.model) || null;
+
+      chatMessages.forEach(msg => {
+        const role = msg.sender === 'human' ? 'user' : 'assistant';
+        let textContent = '';
+        let thinkingContent = '';
+
+        // 解析content数组，分离text和thinking
+        if (msg.content && Array.isArray(msg.content)) {
+          msg.content.forEach(block => {
+            if (block.type === 'thinking' && block.thinking) {
+              thinkingContent += block.thinking;
+            } else if (block.type === 'text' && block.text) {
+              textContent += block.text;
+            }
+          });
+        }
+
+        // 如果没有从content获取到内容，使用text字段
+        if (!textContent && msg.text) {
+          textContent = msg.text;
+        }
+
+        if (!textContent.trim() && !thinkingContent.trim()) return;
+
+        // 转换时间
+        let time = 0;
+        if (msg.created_at) {
+          time = new Date(msg.created_at).getTime() / 1000;
+        }
+
+        // 获取模型信息：优先使用消息级别，其次对话级别
+        // 如果没有找到模型信息则为null（不显示标签）
+        let model = null;
+        if (role === 'assistant') {
+          model = msg.model || msg.model_id || msg.model_slug || convModel || null;
+        }
+
+        messages.push({
+          id: msg.uuid || `claude-${Date.now()}-${Math.random()}`,
+          role,
+          type: 'normal',
+          content: textContent.trim(),
+          thinking: thinkingContent.trim() || null,
+          time,
+          model
+        });
+      });
+
+      messages.sort((a, b) => (a.time || 0) - (b.time || 0));
+      return messages;
+    }
     function renderConversationList() {
       const container = document.getElementById('drawer-conversations');
       if (filteredConversations.length === 0) { container.innerHTML = allConversations.length === 0 ? '<div class="empty-state"><div class="icon">📭</div><p>上传JSON后这里会显示对话列表~</p></div>' : '<div class="empty-state"><div class="icon">🔍</div><p>没有找到匹配的对话</p></div>'; return; }
       container.innerHTML = filteredConversations.map(conv => {
         const isActive = currentConvId === conv.id, isSelected = selectedConvIds.has(conv.id), stats = conversationStats[conv.id] || { messageCount: 0, estimatedTokens: 0 }, escapedTitle = escapeHtml(conv.title || '未命名对话');
         let timeRange = ''; if (conv.create_time) { const cd = formatDateCompact(conv.create_time); if (conv.update_time && conv.update_time !== conv.create_time) { const ud = formatDateCompact(conv.update_time); timeRange = cd !== ud ? `${cd} ~ ${ud}` : cd; } else timeRange = cd; }
-        return `<div class="conv-item ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''}" data-conv-id="${conv.id}"><div class="conv-checkbox ${isSelectMode ? 'show' : ''} ${isSelected ? 'checked' : ''}" onclick="event.stopPropagation(); toggleConvSelection('${conv.id}')">${isSelected ? '✓' : ''}</div><div class="conv-info"><div class="conv-title">💬 ${escapedTitle}</div><div class="conv-meta">${timeRange}<br>${stats.messageCount} 条消息 · ${formatNumber(stats.estimatedTokens)} tokens</div></div><button class="conv-delete-btn" onclick="event.stopPropagation(); showDeleteConvModal('${conv.id}', '${escapedTitle.replace(/'/g, "\\'")}')">×</button></div>`;
+        // 在"全部"筛选模式下显示数据源标签
+        const source = detectConversationSource(conv);
+        const sourceTag = currentSourceFilter === 'all' && source !== 'unknown' ? `<span class="conv-source-tag">${source === 'gpt' ? 'GPT' : 'Claude'}</span>` : '';
+        return `<div class="conv-item ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''}" data-conv-id="${conv.id}"><div class="conv-checkbox ${isSelectMode ? 'show' : ''} ${isSelected ? 'checked' : ''}" onclick="event.stopPropagation(); toggleConvSelection('${conv.id}')">${isSelected ? '✓' : ''}</div><div class="conv-info"><div class="conv-title">💬 ${escapedTitle}${sourceTag}</div><div class="conv-meta">${timeRange}<br>${stats.messageCount} 条消息 · ${formatNumber(stats.estimatedTokens)} tokens</div></div><button class="conv-delete-btn" onclick="event.stopPropagation(); showDeleteConvModal('${conv.id}', '${escapedTitle.replace(/'/g, "\\'")}')">×</button></div>`;
       }).join('');
       container.querySelectorAll('.conv-item').forEach(item => { item.addEventListener('click', function() { const convId = this.dataset.convId; if (isSelectMode) toggleConvSelection(convId); else openConversation(convId); }); });
     }
@@ -1787,7 +2013,7 @@
       } else if (format === 'md') {
         let et = `# 对话导出\n\n> 导出时间: ${new Date().toLocaleString('zh-CN')}  \n> 共 ${sc.length} 个对话\n\n---\n\n`;
         sc.forEach(conv => {
-          const messages = parseMessages(conv.mapping, conv.current_node);
+          const messages = parseMessages(conv);
           et += `## 📚 ${conv.title || '未命名对话'}\n\n`;
           messages.forEach(msg => {
             if (msg.type === 'custom_instructions' || msg.type === 'memory_update' || msg.type === 'memory_call') return;
@@ -1800,7 +2026,7 @@
       } else if (format === 'txt') {
         let et = `对话导出\n导出时间: ${new Date().toLocaleString('zh-CN')}\n共 ${sc.length} 个对话\n${'='.repeat(50)}\n`;
         sc.forEach(conv => {
-          const messages = parseMessages(conv.mapping, conv.current_node);
+          const messages = parseMessages(conv);
           et += `\n\n${'═'.repeat(50)}\n📚 ${conv.title || '未命名对话'}\n${'─'.repeat(50)}\n`;
           messages.forEach(msg => {
             if (msg.type === 'custom_instructions' || msg.type === 'memory_update' || msg.type === 'memory_call') return;
@@ -1818,14 +2044,27 @@
     function showDeleteConvModal(convId, convTitle) { showModal('🗑️', '删除对话', `确定要删除「${convTitle}」吗？\n此操作无法撤销！`, async () => { await performDeleteConversation(convId); }, true); }
     function showDeleteSelectedModal() { if (selectedConvIds.size === 0) { showToast('请先选择要删除的对话'); return; } showModal('🗑️', '批量删除', `确定要删除选中的 ${selectedConvIds.size} 个对话吗？\n此操作无法撤销！`, async () => { showLoading('正在删除...'); try { const ids = [...selectedConvIds]; for (const id of ids) { await deleteConversationFromDb(id); allConversations = allConversations.filter(c => c.id !== id); } selectedConvIds.clear(); toggleSelectMode(); processAllConversations(); if (allConversations.length === 0) { document.getElementById('view-upload').style.display = 'flex'; document.getElementById('view-chat').classList.remove('show'); currentConvId = null; } else if (ids.includes(currentConvId)) openConversation(allConversations[0].id); showToast('已删除选中的对话'); } catch (e) { console.error('删除失败', e); showToast('删除失败，请重试'); } hideLoading(); }, true); }
     async function performDeleteConversation(convId) { showLoading('正在删除...'); try { await deleteConversationFromDb(convId); allConversations = allConversations.filter(c => c.id !== convId); processAllConversations(); if (allConversations.length === 0) { document.getElementById('view-upload').style.display = 'flex'; document.getElementById('view-chat').classList.remove('show'); currentConvId = null; } else if (currentConvId === convId) openConversation(allConversations[0].id); showToast('已删除对话'); } catch (e) { console.error('删除失败', e); showToast('删除失败，请重试'); } hideLoading(); }
-    function filterConversations() { const kw = document.getElementById('conv-search-input').value.toLowerCase().trim(); filteredConversations = !kw ? [...allConversations] : allConversations.filter(c => (c.title || '').toLowerCase().includes(kw)); renderConversationList(); }
+    function filterConversations() {
+      const kw = document.getElementById('conv-search-input').value.toLowerCase().trim();
+      // 先按数据源筛选
+      let result = allConversations;
+      if (currentSourceFilter !== 'all') {
+        result = result.filter(c => detectConversationSource(c) === currentSourceFilter);
+      }
+      // 再按关键词筛选
+      if (kw) {
+        result = result.filter(c => (c.title || '').toLowerCase().includes(kw));
+      }
+      filteredConversations = result;
+      renderConversationList();
+    }
     
-    function openConversation(convId, highlightKeyword = null, skipScrollReset = false) { 
-      const conv = allConversations.find(c => c.id === convId); 
-      if (!conv) return; 
-      currentConvId = convId; 
-      currentConvIndex = allConversations.indexOf(conv); 
-      currentMessages = parseMessages(conv.mapping, conv.current_node); 
+    function openConversation(convId, highlightKeyword = null, skipScrollReset = false) {
+      const conv = allConversations.find(c => c.id === convId);
+      if (!conv) return;
+      currentConvId = convId;
+      currentConvIndex = allConversations.indexOf(conv);
+      currentMessages = parseMessages(conv); 
       document.getElementById('chat-title').textContent = conv.title || '未命名对话'; 
       saveLastViewedConv(convId);
       const kwToHighlight = highlightKeyword || null;
@@ -1864,8 +2103,14 @@
           const avatarContent = msg.role === 'user'
             ? (appSettings.userAvatar ? `<img src="${appSettings.userAvatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : '🧸')
             : (appSettings.aiAvatar ? `<img src="${appSettings.aiAvatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : '🤖');
+          // Claude thinking内容折叠显示
+          let thinkingHtml = '';
+          if (msg.thinking) {
+            const thinkingId = `thinking-${msg.id}`;
+            thinkingHtml = `<div class="thinking-block"><div class="thinking-header collapsed" onclick="toggleThinking('${thinkingId}')"><span class="thinking-toggle">▼</span><span>💭 思考过程</span></div><div class="thinking-content collapsed" id="${thinkingId}">${escapeHtml(msg.thinking)}</div></div>`;
+          }
           const copyIcon = `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
-          html += `<div class="message ${msg.role}" id="msg-${msg.id}" data-date="${ds}" data-content="${escapeHtml(msg.content).replace(/"/g, '&quot;')}"><div class="message-avatar-wrapper"><div class="message-avatar">${avatarContent}</div>${an ? `<span class="avatar-name">${escapeHtml(an)}</span>` : ''}</div><div class="message-body"><button class="msg-delete-x" onclick="event.stopPropagation(); showDeleteMsgModal('${msg.id}', '${convIdForFav}')" title="删除此消息">×</button><div class="message-bubble">${dc}</div><div class="message-footer"><span class="message-time">${msg.time ? formatFullDateTime(msg.time) : ''}</span>${mb}<button class="star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${msg.id}', '${convIdForFav}', this)">${isFav ? '⭐' : '☆'}</button><button class="msg-copy-btn" onclick="copyMessageToClipboard(this)" title="复制消息">${copyIcon}</button></div></div></div>`;
+          html += `<div class="message ${msg.role}" id="msg-${msg.id}" data-date="${ds}" data-content="${escapeHtml(msg.content).replace(/"/g, '&quot;')}"><div class="message-avatar-wrapper"><div class="message-avatar">${avatarContent}</div>${an ? `<span class="avatar-name">${escapeHtml(an)}</span>` : ''}</div><div class="message-body"><button class="msg-delete-x" onclick="event.stopPropagation(); showDeleteMsgModal('${msg.id}', '${convIdForFav}')" title="删除此消息">×</button><div class="message-bubble">${thinkingHtml}${dc}</div><div class="message-footer"><span class="message-time">${msg.time ? formatFullDateTime(msg.time) : ''}</span>${mb}<button class="star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${msg.id}', '${convIdForFav}', this)">${isFav ? '⭐' : '☆'}</button><button class="msg-copy-btn" onclick="copyMessageToClipboard(this)" title="复制消息">${copyIcon}</button></div></div></div>`;
         }
       });
       tc.innerHTML = html;
@@ -1876,18 +2121,47 @@
       // 应用字体设置
       applyFont();
     }
-    function formatModelName(m) { const mm = { 'gpt-4': 'GPT-4', 'gpt-4o': 'GPT-4o', 'gpt-4o-mini': 'GPT-4o mini', 'gpt-4-turbo': 'GPT-4 Turbo', 'gpt-3.5-turbo': 'GPT-3.5', 'text-davinci-002-render-sha': 'GPT-3.5', 'gpt-4-gizmo': 'GPT-4 (GPTs)', 'o1-preview': 'o1-preview', 'o1-mini': 'o1-mini' }; return mm[m] || m; }
+    function formatModelName(m) {
+      if (!m) return '';
+      // GPT模型映射
+      const mm = { 'gpt-4': 'GPT-4', 'gpt-4o': 'GPT-4o', 'gpt-4o-mini': 'GPT-4o mini', 'gpt-4-turbo': 'GPT-4 Turbo', 'gpt-3.5-turbo': 'GPT-3.5', 'text-davinci-002-render-sha': 'GPT-3.5', 'gpt-4-gizmo': 'GPT-4 (GPTs)', 'o1-preview': 'o1-preview', 'o1-mini': 'o1-mini' };
+      if (mm[m]) return mm[m];
+      // Claude模型版本解析
+      if (m.startsWith('claude-')) {
+        // claude-opus-4-5-xxx -> Opus 4.5
+        // claude-sonnet-4-5-xxx -> Sonnet 4.5
+        // claude-3-5-sonnet-xxx -> Sonnet 3.5
+        // claude-3-opus-xxx -> Opus 3
+        const lower = m.toLowerCase();
+        if (lower.includes('opus-4-5') || lower.includes('opus-4.5')) return 'Opus 4.5';
+        if (lower.includes('sonnet-4-5') || lower.includes('sonnet-4.5')) return 'Sonnet 4.5';
+        if (lower.includes('3-5-sonnet') || lower.includes('3.5-sonnet')) return 'Sonnet 3.5';
+        if (lower.includes('3-5-haiku') || lower.includes('3.5-haiku')) return 'Haiku 3.5';
+        if (lower.includes('3-opus')) return 'Opus 3';
+        if (lower.includes('3-sonnet')) return 'Sonnet 3';
+        if (lower.includes('3-haiku')) return 'Haiku 3';
+        if (lower.includes('opus')) return 'Opus';
+        if (lower.includes('sonnet')) return 'Sonnet';
+        if (lower.includes('haiku')) return 'Haiku';
+        return 'Claude';
+      }
+      return m;
+    }
+    function toggleThinking(thinkingId) {
+      const content = document.getElementById(thinkingId);
+      const header = content?.previousElementSibling;
+      if (content && header) {
+        content.classList.toggle('collapsed');
+        header.classList.toggle('collapsed');
+      }
+    }
 
     // 代码块复制按钮功能
     function addCodeCopyButtons(container) {
       const copyIcon = `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
       const checkIcon = `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
       container.querySelectorAll('.message-bubble pre').forEach(pre => {
-        if (pre.parentElement.classList.contains('code-block-wrapper')) return;
-        const wrapper = document.createElement('div');
-        wrapper.className = 'code-block-wrapper';
-        pre.parentNode.insertBefore(wrapper, pre);
-        wrapper.appendChild(pre);
+        if (pre.querySelector('.code-copy-btn')) return;
         const btn = document.createElement('button');
         btn.className = 'code-copy-btn';
         btn.innerHTML = copyIcon;
@@ -1908,7 +2182,7 @@
             showToast('复制失败');
           }
         };
-        wrapper.appendChild(btn);
+        pre.appendChild(btn);
       });
     }
 
@@ -2160,17 +2434,20 @@
       updateDateLabel();
       const fd = new Date(currentYear, currentMonth, 1).getDay();
       const dim = new Date(currentYear, currentMonth + 1, 0).getDate();
-      const monthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
-      const cached = monthStatsCache[monthKey];
-      let html = '';
+      // 根据筛选条件选择数据源
+      const statsData = currentSourceFilter === 'all' ? statsByDate : filteredStatsByDate;
+      let html = '', mtw = 0, mad = 0;
       // 填充空白格子
       for (let i = 0; i < fd; i++) html += '<div class="calendar-day empty"></div>';
       // 渲染每一天
       for (let d = 1; d <= dim; d++) {
         const ds = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const tw = cached?.days?.[ds] || 0;
+        const st = statsData[ds];
+        const tw = st ? (st.userWords + st.aiWords) : 0;
         let hc = '', wl = '';
         if (tw > 0) {
+          mtw += tw;
+          mad++;
           wl = formatWordCount(tw);
           if (tw < 5000) hc = 'heat-1';
           else if (tw < 20000) hc = 'heat-2';
@@ -2180,9 +2457,6 @@
         html += `<div class="calendar-day ${hc}" onclick="showDayMessages('${ds}')"><span class="day-num">${d}</span>${wl ? `<span class="day-words">${wl}</span>` : ''}</div>`;
       }
       c.innerHTML = html;
-      // 使用缓存的统计数据
-      const mtw = cached?.totalWords || 0;
-      const mad = cached?.activeDays || 0;
       document.getElementById('stat-total-words').textContent = formatWordCount(mtw);
       document.getElementById('stat-total-days').textContent = mad + '天';
       renderWordCloud();
@@ -2233,7 +2507,7 @@
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       const rect = canvas.parentElement.getBoundingClientRect();
-      
+
       // 处理设备像素比，解决锯齿问题
       const dpr = window.devicePixelRatio || 1;
       const displayWidth = rect.width - 32;
@@ -2243,13 +2517,15 @@
       canvas.style.width = displayWidth + 'px';
       canvas.style.height = displayHeight + 'px';
       ctx.scale(dpr, dpr);
-      
+
+      // 根据筛选条件选择数据源
+      const statsData = currentSourceFilter === 'all' ? statsByDate : filteredStatsByDate;
       const dim = new Date(currentYear, currentMonth + 1, 0).getDate();
       const data = [];
       let maxVal = 0;
       for (let d = 1; d <= dim; d++) {
         const ds = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const st = statsByDate[ds];
+        const st = statsData[ds];
         const val = st ? (st.userWords + st.aiWords) : 0;
         data.push(val);
         if (val > maxVal) maxVal = val;
@@ -2331,7 +2607,7 @@
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       const rect = canvas.parentElement.getBoundingClientRect();
-      
+
       const dpr = window.devicePixelRatio || 1;
       const displayWidth = rect.width - 32;
       const displayHeight = 200;
@@ -2340,7 +2616,9 @@
       canvas.style.width = displayWidth + 'px';
       canvas.style.height = displayHeight + 'px';
       ctx.scale(dpr, dpr);
-      
+
+      // 根据筛选条件选择数据源
+      const statsData = currentSourceFilter === 'all' ? statsByDate : filteredStatsByDate;
       // 统计每月数据
       const monthData = [];
       let maxVal = 0;
@@ -2349,7 +2627,7 @@
         const daysInMonth = new Date(currentYear, m, 0).getDate();
         for (let d = 1; d <= daysInMonth; d++) {
           const ds = `${currentYear}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-          const st = statsByDate[ds];
+          const st = statsData[ds];
           if (st) monthTotal += st.userWords + st.aiWords;
         }
         monthData.push(monthTotal);
@@ -2412,12 +2690,16 @@
       });
     }
     
-    // 更新窗口筛选下拉框
+    // 更新窗口筛选下拉框 - 根据数据源筛选联动
     function updateConvFilterOptions() {
       const select = document.getElementById('wordcloud-conv-filter');
       if (!select) return;
       select.innerHTML = '<option value="all">全部窗口</option>';
-      allConversations.forEach(conv => {
+      // 根据当前数据源筛选对话列表
+      const targetConvs = currentSourceFilter === 'all'
+        ? allConversations
+        : allConversations.filter(c => (c._source || 'gpt') === currentSourceFilter);
+      targetConvs.forEach(conv => {
         const title = (conv.title || '未命名对话').substring(0, 15) + ((conv.title || '').length > 15 ? '...' : '');
         select.innerHTML += `<option value="${conv.id}">${escapeHtml(title)}</option>`;
       });
@@ -2486,14 +2768,17 @@
     function renderWordCloud() {
       const container = document.getElementById('wordcloud-container');
       if (!container) return;
-      
+
       const convFilter = document.getElementById('wordcloud-conv-filter')?.value || 'all';
       const dateFilter = document.getElementById('wordcloud-date-filter')?.value || 'all';
       const roleFilter = document.getElementById('wordcloud-role-filter')?.value || 'all';
       const hideEnglish = document.getElementById('wordcloud-hide-english')?.checked || false;
-      
+
+      // 根据数据源筛选选择消息
+      const msgData = currentSourceFilter === 'all' ? messagesByDate : filteredMessagesByDate;
+      const sourceMessages = Object.values(msgData).flat();
       // 筛选消息 - 根据角色筛选
-      let filteredMsgs = allMessages.filter(m => m.type === 'normal');
+      let filteredMsgs = sourceMessages.filter(m => m.type === 'normal' || !m.type);
       
       if (roleFilter === 'user') {
         filteredMsgs = filteredMsgs.filter(m => m.role === 'user');
@@ -2549,72 +2834,26 @@
     
     // 聊天总览渲染
     function renderOverview() {
-      renderTotalStats();
       renderOverviewSummary();
+      renderTotalStats();
       renderTopDays();
       renderTopConversations();
     }
-
-    // 总数据统计渲染
-    function renderTotalStats() {
-      // 获取设置的名字，如果没有则使用默认值
-      const userName = (appSettings && appSettings.userName) ? appSettings.userName : '用户';
-      const aiName = (appSettings && appSettings.aiName) ? appSettings.aiName : '助手';
-
-      // 更新名字显示
-      const userNameEl = document.getElementById('total-user-name');
-      const aiNameEl = document.getElementById('total-ai-name');
-      if (userNameEl) userNameEl.textContent = userName;
-      if (aiNameEl) aiNameEl.textContent = aiName;
-
-      // 更新头像
-      const userAvatarEl = document.getElementById('total-user-avatar');
-      const aiAvatarEl = document.getElementById('total-ai-avatar');
-      if (userAvatarEl) {
-        userAvatarEl.innerHTML = (appSettings && appSettings.userAvatar)
-          ? `<img src="${appSettings.userAvatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : '🧸';
-      }
-      if (aiAvatarEl) {
-        aiAvatarEl.innerHTML = (appSettings && appSettings.aiAvatar)
-          ? `<img src="${appSettings.aiAvatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : '🤖';
-      }
-
-      // 计算统计数据
-      let userWords = 0, aiWords = 0, userMsgs = 0, aiMsgs = 0;
-      allMessages.forEach(msg => {
-        if (msg.type && msg.type !== 'normal') return;
-        const words = msg.content ? msg.content.length : 0;
-        if (msg.role === 'user') {
-          userWords += words;
-          userMsgs++;
-        } else if (msg.role === 'assistant') {
-          aiWords += words;
-          aiMsgs++;
-        }
-      });
-
-      const userAvg = userMsgs > 0 ? Math.round(userWords / userMsgs) : 0;
-      const aiAvg = aiMsgs > 0 ? Math.round(aiWords / aiMsgs) : 0;
-
-      // 更新数据显示
-      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-      setVal('total-user-words', userWords.toLocaleString() + ' 字');
-      setVal('total-user-msgs', userMsgs.toLocaleString() + ' 条');
-      setVal('total-user-avg', userAvg.toLocaleString() + ' 字');
-      setVal('total-ai-words', aiWords.toLocaleString() + ' 字');
-      setVal('total-ai-msgs', aiMsgs.toLocaleString() + ' 条');
-      setVal('total-ai-avg', aiAvg.toLocaleString() + ' 字');
-    }
-
+    
     function renderOverviewSummary() {
       const textEl = document.getElementById('overview-text');
-      if (!textEl || allMessages.length === 0) {
+      // 根据筛选选择数据源
+      const statsData = currentSourceFilter === 'all' ? statsByDate : filteredStatsByDate;
+      const msgData = currentSourceFilter === 'all' ? messagesByDate : filteredMessagesByDate;
+      const totalMsgs = Object.values(msgData).flat();
+
+      if (!textEl || totalMsgs.length === 0) {
         if (textEl) textEl.innerHTML = '还没有聊天记录哦~';
         return;
       }
-      
+
       // 获取所有有消息的日期
-      const dates = Object.keys(statsByDate).sort();
+      const dates = Object.keys(statsData).sort();
       if (dates.length === 0) {
         textEl.innerHTML = '还没有聊天记录哦~';
         return;
@@ -2630,7 +2869,7 @@
       // 计算总字数
       let totalWords = 0;
       dates.forEach(ds => {
-        const st = statsByDate[ds];
+        const st = statsData[ds];
         if (st) totalWords += st.userWords + st.aiWords;
       });
       const avgWordsPerDay = chatDays > 0 ? Math.round(totalWords / chatDays) : 0;
@@ -2652,7 +2891,7 @@
       // 统计每个小时的消息数量，找出最活跃时段
       const hourCounts = new Array(24).fill(0);
       let totalMsgCount = 0;
-      allMessages.forEach(msg => {
+      totalMsgs.forEach(msg => {
         if (msg.time && (msg.type === 'normal' || !msg.type)) {
           const hour = new Date(msg.time * 1000).getHours();
           hourCounts[hour]++;
@@ -2678,13 +2917,66 @@
       
       textEl.innerHTML = `我们从 <span class="highlight-num">${firstDateStr}</span> 聊到 <span class="highlight-num">${lastDateStr}</span>，共同走过了 <span class="highlight-num">${totalDays}</span> 天。<br>这期间，有 <span class="highlight-num">${chatDays}</span> 天都有我们的对话，每个活跃日平均要说上 <span class="highlight-num">${avgWordsPerDay.toLocaleString()}</span> 字。<br>我们最喜欢在 <span class="highlight-num">${peakTimeStr}</span> 谈话，那段时光占据了所有对话的 <span class="highlight-num">${peakPercent}%</span>。<br>最长的一次，我们连续聊了 <span class="highlight-num">${maxStreak}</span> 天都没有停下。`;
     }
-    
+
+    // 渲染总数据统计卡片（支持数据源筛选）
+    function renderTotalStats() {
+      const userName = (appSettings && appSettings.userName) ? appSettings.userName : '用户';
+      const aiName = (appSettings && appSettings.aiName) ? appSettings.aiName : '助手';
+      const userAvatarSrc = appSettings && appSettings.userAvatar;
+      const aiAvatarSrc = appSettings && appSettings.aiAvatar;
+
+      // 更新头像和名称
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      const setAvatar = (id, src, fallback) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (src && (src.startsWith('data:') || src.startsWith('http'))) {
+          el.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+        } else {
+          el.textContent = fallback;
+        }
+      };
+      setVal('total-user-name', userName);
+      setVal('total-ai-name', aiName);
+      setAvatar('total-user-avatar', userAvatarSrc, '🧸');
+      setAvatar('total-ai-avatar', aiAvatarSrc, '🤖');
+
+      // 根据数据源筛选统计消息
+      const msgData = currentSourceFilter === 'all' ? messagesByDate : filteredMessagesByDate;
+      const targetMessages = Object.values(msgData).flat();
+
+      let userWords = 0, aiWords = 0, userMsgs = 0, aiMsgs = 0;
+      targetMessages.forEach(msg => {
+        if (msg.type && msg.type !== 'normal') return;
+        const words = msg.content ? msg.content.length : 0;
+        if (msg.role === 'user') {
+          userWords += words;
+          userMsgs++;
+        } else if (msg.role === 'assistant') {
+          aiWords += words;
+          aiMsgs++;
+        }
+      });
+
+      const userAvg = userMsgs > 0 ? Math.round(userWords / userMsgs) : 0;
+      const aiAvg = aiMsgs > 0 ? Math.round(aiWords / aiMsgs) : 0;
+
+      setVal('total-user-words', userWords.toLocaleString() + ' 字');
+      setVal('total-user-msgs', userMsgs.toLocaleString() + ' 条');
+      setVal('total-user-avg', userAvg.toLocaleString() + ' 字');
+      setVal('total-ai-words', aiWords.toLocaleString() + ' 字');
+      setVal('total-ai-msgs', aiMsgs.toLocaleString() + ' 条');
+      setVal('total-ai-avg', aiAvg.toLocaleString() + ' 字');
+    }
+
     function renderTopDays() {
       const container = document.getElementById('top-days-list');
       if (!container) return;
-      
+
+      // 根据筛选条件选择数据源
+      const statsData = currentSourceFilter === 'all' ? statsByDate : filteredStatsByDate;
       // 按字数排序日期
-      const dayStats = Object.entries(statsByDate).map(([date, st]) => ({
+      const dayStats = Object.entries(statsData).map(([date, st]) => ({
         date,
         words: st.userWords + st.aiWords,
         count: st.count
@@ -2709,9 +3001,13 @@
     function renderTopConversations() {
       const container = document.getElementById('top-convs-list');
       if (!container) return;
-      
+
+      // 根据筛选条件选择对话
+      const targetConvs = currentSourceFilter === 'all'
+        ? allConversations
+        : allConversations.filter(c => (c._source || 'gpt') === currentSourceFilter);
       // 按字数排序对话
-      const convStats = allConversations.map(conv => {
+      const convStats = targetConvs.map(conv => {
         const stats = conversationStats[conv.id] || { totalChars: 0, messageCount: 0 };
         return {
           id: conv.id,
@@ -2739,8 +3035,11 @@
     }
     
     function randomJumpToMoment() {
+      // 根据筛选条件选择消息源
+      const msgData = currentSourceFilter === 'all' ? messagesByDate : filteredMessagesByDate;
+      const targetMessages = Object.values(msgData).flat();
       // 筛选出所有普通消息（排除系统消息和记忆消息）
-      const normalMessages = allMessages.filter(m => m.type === 'normal' || !m.type);
+      const normalMessages = targetMessages.filter(m => m.type === 'normal' || !m.type);
       if (normalMessages.length === 0) {
         showToast('还没有聊天记录哦');
         return;
@@ -2767,8 +3066,9 @@
       showToast(`🎲 随机到了 ${timeStr} ${roleStr}一句话~`);
     }
     
-    function showDayMessages(ds) { 
-      const dm = messagesByDate[ds]; 
+    function showDayMessages(ds) {
+      const msgData = currentSourceFilter === 'all' ? messagesByDate : filteredMessagesByDate;
+      const dm = msgData[ds];
       if (!dm || dm.length === 0) { showToast('这天没有消息'); return; }
       const convMap = new Map();
       dm.forEach(msg => {
@@ -2785,19 +3085,20 @@
         return `<div class="conv-select-item" onclick="showConvMessagesForDate('${ds}', '${conv.convId}')"><div class="conv-icon">💬</div><div class="conv-detail"><div class="conv-name">${escapeHtml(conv.convTitle)}</div><div class="conv-stats">${conv.messageCount} 条消息 · 用户 ${conv.userCount} 条 · AI ${conv.aiCount} 条</div></div><div class="conv-arrow">›</div></div>`;
       }).join('');
       window.currentSelectedDate = ds;
-      switchView('conv-select'); 
+      switchView('conv-select');
     }
 
     function showConvMessagesForDate(ds, convId) {
-      const dm = messagesByDate[ds];
+      const msgData = currentSourceFilter === 'all' ? messagesByDate : filteredMessagesByDate;
+      const dm = msgData[ds];
       if (!dm || dm.length === 0) { showToast('没有找到消息'); return; }
-      const filteredMessages = dm.filter(msg => msg.convId === convId);
-      if (filteredMessages.length === 0) { showToast('该窗口在这天没有消息'); return; }
-      filteredMessages.sort((a, b) => (a.time || 0) - (b.time || 0));
-      const convTitle = filteredMessages[0].convTitle || '未命名对话';
+      const filteredMsgs = dm.filter(msg => msg.convId === convId);
+      if (filteredMsgs.length === 0) { showToast('该窗口在这天没有消息'); return; }
+      filteredMsgs.sort((a, b) => (a.time || 0) - (b.time || 0));
+      const convTitle = filteredMsgs[0].convTitle || '未命名对话';
       document.getElementById('day-messages-title').textContent = `${formatDateFromKey(ds)}`;
-      document.getElementById('day-messages-subtitle').textContent = `${convTitle} · 共 ${filteredMessages.length} 条消息`;
-      renderMessages(filteredMessages, document.getElementById('day-messages-container'), false);
+      document.getElementById('day-messages-subtitle').textContent = `${convTitle} · 共 ${filteredMsgs.length} 条消息`;
+      renderMessages(filteredMsgs, document.getElementById('day-messages-container'), false);
       window.currentSelectedDate = ds;
       window.currentSelectedConvId = convId;
       switchView('day-messages');
@@ -2806,7 +3107,16 @@
 
     function backToConvSelect() { if (window.currentSelectedDate) { showDayMessages(window.currentSelectedDate); } else { switchView('timeline'); } }
     
-    function renderTimeline() { const c = document.getElementById('timeline-list'), dates = Object.keys(statsByDate).sort().reverse(); if (dates.length === 0) { c.innerHTML = '<div class="empty-state"><div class="icon">📅</div><p>还没有对话数据~</p></div>'; return; } c.innerHTML = dates.map(d => { const st = statsByDate[d], total = st.userWords + st.aiWords; return `<div class="timeline-date-item" onclick="showDayMessages('${d}')"><span class="date">${formatDateFromKey(d)}</span><span class="count">${st.count}条消息 · ${formatWordCount(total)}</span></div>`; }).join(''); }
+    function renderTimeline() {
+      const c = document.getElementById('timeline-list');
+      const statsData = currentSourceFilter === 'all' ? statsByDate : filteredStatsByDate;
+      const dates = Object.keys(statsData).sort().reverse();
+      if (dates.length === 0) { c.innerHTML = '<div class="empty-state"><div class="icon">📅</div><p>还没有对话数据~</p></div>'; return; }
+      c.innerHTML = dates.map(d => {
+        const st = statsData[d], total = st.userWords + st.aiWords;
+        return `<div class="timeline-date-item" onclick="showDayMessages('${d}')"><span class="date">${formatDateFromKey(d)}</span><span class="count">${st.count}条消息 · ${formatWordCount(total)}</span></div>`;
+      }).join('');
+    }
     
     function switchView(view) { 
       document.querySelectorAll('.drawer-menu-item').forEach(el => el.classList.toggle('active', el.dataset.view === view)); 
@@ -2835,7 +3145,25 @@
     }
     
     function toggleDrawer(show) { const d = document.getElementById('drawer'), o = document.getElementById('drawer-overlay'); if (typeof show === 'undefined') show = !d.classList.contains('show'); d.classList.toggle('show', show); o.classList.toggle('show', show); }
-    function updateDrawerSubtitle() { const s = document.getElementById('drawer-subtitle'); s.textContent = allConversations.length > 0 ? `${allConversations.length} 个对话 · ${allMessages.length} 条消息` : '还没有上传对话哦~'; }
+    function updateDrawerSubtitle() {
+      const s = document.getElementById('drawer-subtitle');
+      if (allConversations.length === 0) {
+        s.textContent = '还没有上传对话哦~';
+        return;
+      }
+      if (currentSourceFilter === 'all') {
+        s.textContent = `${allConversations.length} 个对话 · ${allMessages.length} 条消息`;
+      } else {
+        const filteredConvs = allConversations.filter(c => (c._source || 'gpt') === currentSourceFilter);
+        let filteredMsgCount = 0;
+        filteredConvs.forEach(conv => {
+          const msgs = parseMessages(conv);
+          filteredMsgCount += msgs.length;
+        });
+        const label = currentSourceFilter === 'claude' ? 'Claude' : 'GPT';
+        s.textContent = `${filteredConvs.length} 个${label}对话 · ${filteredMsgCount} 条消息`;
+      }
+    }
     function showModal(icon, title, message, onConfirm, isDanger = false) { document.getElementById('modal-icon').textContent = icon; document.getElementById('modal-title').textContent = title; document.getElementById('modal-message').textContent = message; document.getElementById('modal-confirm-btn').className = isDanger ? 'modal-btn confirm' : 'modal-btn primary'; modalConfirmCallback = onConfirm; document.getElementById('modal-overlay').classList.add('show'); }
     function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); modalConfirmCallback = null; }
     async function confirmModalAction() { if (modalConfirmCallback) { const cb = modalConfirmCallback; closeModal(); await cb(); } }
